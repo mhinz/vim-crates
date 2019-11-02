@@ -10,7 +10,13 @@ endif
 let s:api_crates = 'https://crates.io/api/v1'
 let s:api_github = 'https://api.github.com/repos/rust-lang/crates.io-index'
 
+let s:ns = nvim_create_namespace('crates')
+
 let b:crates = {}
+
+highlight default Crates
+      \ ctermfg=white ctermbg=198 cterm=NONE
+      \ guifg=#ffffff guibg=#fc3790 gui=NONE
 
 " @return [crate, version]
 function! s:cargo_file_parse_line(line) abort
@@ -44,13 +50,17 @@ function! s:job_callback_nvim_exit(_job_id, exitval, _event) dict abort
     return
   endif
   let b:crates[self.crate] = map(json_decode(self.stdoutbuf[0]).versions, 'v:val.num')
+  call nvim_buf_set_virtual_text(bufnr(''), s:ns, self.lnum,
+        \ [[' '. b:crates[self.crate][0] .' ', 'Crates']], {})
 endfunction
 
-function! s:make_request(crate) abort
+function! s:make_request(crate, vers, lnum) abort
   let url = printf('%s/crates/%s/versions', s:api_crates, a:crate)
   let cmd = ['curl', '-sL', url]
   let job_id = jobstart(cmd, {
         \ 'crate':     a:crate,
+        \ 'vers':      a:vers,
+        \ 'lnum':      a:lnum,
         \ 'stdoutbuf': [''],
         \ 'on_stdout': function('s:job_callback_nvim_stdout'),
         \ 'on_exit':   function('s:job_callback_nvim_exit'),
@@ -58,7 +68,7 @@ function! s:make_request(crate) abort
 endfunction
 
 function! s:crates() abort
-  let lnum = 1
+  let lnum = 0
   let in_dep_section = 0
 
   for line in getline(1, '$')
