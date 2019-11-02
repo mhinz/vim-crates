@@ -2,21 +2,26 @@ if exists('g:loaded_crates')
   finish
 endif
 
-let s:api = 'https://api.github.com/repos/rust-lang/crates.io-index'
+" curl -s https://crates.io/api/v1/crates/cargo_metadata/versions | jq '.versions[].num'
+"
+" More prone to rate-limiting:
+" curl -sH 'Accept: application/vnd.github.VERSION.raw' https://api.github.com/repos/rust-lang/crates.io-index/contents/ca/rg/cargo_metadata | jq '.vers'
 
-let s:crates = {}
+let s:api_crates = 'https://crates.io/api/v1'
+let s:api_github = 'https://api.github.com/repos/rust-lang/crates.io-index'
 
-" @return [valid_line, crate, version]
-function! s:parse_line(line) abort
-  let line = getline(a:line)
-  if line =~ '^[a-z\-_]* = "'
-    return matchlist(line, '^\([a-z\-_]\+\) = "\([0-9.]\+\)"')[1:2]
+let b:crates = {}
+
+" @return [crate, version]
+function! s:cargo_file_parse_line(line) abort
+  if a:line =~ '^[a-z\-_]* = "'
+    return matchlist(a:line, '^\([a-z\-_]\+\) = "\([0-9.]\+\)"')[1:2]
   else
-    return matchlist(line, '^\([a-z\-_]\+\) = {.*version = "\([0-9.]\+\)"')[1:2]
+    return matchlist(a:line, '^\([a-z\-_]\+\) = {.*version = "\([0-9.]\+\)"')[1:2]
   endif
 endfunction
 
-function! s:get_index_path(crate) abort
+function! s:github_get_index_path(crate) abort
   let len = len(a:crate)
   if len == 1
     return printf('1/%s', a:crate)
@@ -28,44 +33,46 @@ function! s:get_index_path(crate) abort
   return printf('%s/%s/%s', a:crate[0:1], a:crate[2:3], a:crate)
 endfunction
 
-function! s:make_request(crate) abort
-  let url = s:api .'/contents/'. s:get_index_path(a:crate)
-  let cmd = 'curl -sLH "Accept: application/vnd.github.VERSION.raw" '. url
-  return system(cmd)
+function! s:job_callback_nvim_stdout(_job_id, data, _event) dict abort
+  let self.stdoutbuf[-1] .= a:data[0]
+  call extend(self.stdoutbuf, a:data[1:])
 endfunction
 
-function! s:parse_cargo_file() abort
+function! s:job_callback_nvim_exit(_job_id, exitval, _event) dict abort
+  if a:exitval
+    echomsg "D'oh! Got ". a:exitval
+    return
+  endif
+  let b:crates[self.crate] = map(json_decode(self.stdoutbuf[0]).versions, 'v:val.num')
+endfunction
+
+function! s:make_request(crate) abort
+  let url = printf('%s/crates/%s/versions', s:api_crates, a:crate)
+  let cmd = ['curl', '-sL', url]
+  let job_id = jobstart(cmd, {
+        \ 'crate':     a:crate,
+        \ 'stdoutbuf': [''],
+        \ 'on_stdout': function('s:job_callback_nvim_stdout'),
+        \ 'on_exit':   function('s:job_callback_nvim_exit'),
+        \ })
+endfunction
+
+function! s:crates() abort
   let lnum = 1
-  let lnums = []
   let in_dep_section = 0
 
   for line in getline(1, '$')
     if line =~# '^\[.*dependencies\]$'
       let in_dep_section = 1
+    elseif line[0] == '#'
     elseif empty(line)
       let in_dep_section = 0
     elseif in_dep_section
-
+      let [crate, vers] = s:cargo_file_parse_line(line)
+      call s:make_request(crate, vers, lnum)
     endif
     let lnum += 1
   endfor
-
-  return lnums
-endfunction
-
-function! s:get_versions(crate) abort
-  let s:crates[a:crate] = map(split(s:make_request(a:crate)), 'json_decode(v:val).vers')
-  echomsg string(s:crates[a:crate])
-endfunction
-
-function! s:crates() abort
-  for lnum in s:cargo_dependency_sections_line_numbers()
-    echomsg getline(lnum)
-    " let [crate, vers] = s:parse_line(line('.'))
-    " echomsg crate
-  endfor
-  " call s:get_versions(crate)
-
 endfunction
 
 command! Crates call s:crates()
