@@ -73,6 +73,23 @@ function! s:make_request(crate, vers, lnum) abort
         \ })
 endfunction
 
+function! g:CratesComplete(findstart, base)
+  if a:findstart
+    let line = getline('.')
+    let start = col('.') - 1
+    while start > 0 && line[start - 1] =~ '[0-9.]'
+      let start -= 1
+    endwhile
+    return start
+  else
+    let crate = matchstr(getline('.'), '^[a-z\-_]\+')
+    if has_key(b:crates, crate)
+      return filter(copy(b:crates[crate]), 'v:val =~ "^'.a:base.'"')
+    endif
+    return []
+  endif
+endfunction
+
 function! s:crates() abort
   let b:crates = {}
 
@@ -91,6 +108,8 @@ function! s:crates() abort
     endif
     let lnum += 1
   endfor
+
+  set omnifunc=CratesComplete
 endfunction
 
 command! Crates call s:crates()
