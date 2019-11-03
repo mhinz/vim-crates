@@ -16,9 +16,13 @@ highlight default Crates
 function! s:cargo_file_parse_line(line) abort
   if a:line =~ '^[a-z\-_]* = "'
     return matchlist(a:line, '^\([a-z\-_]\+\) = "\([0-9.]\+\)"')[1:2]
-  else
+  elseif a:line =~# 'version'
     return matchlist(a:line, '^\([a-z\-_]\+\) = {.*version = "\([0-9.]\+\)"')[1:2]
   endif
+  if &verbose
+    echomsg 'Skipped:' a:line
+  endif
+  return ['', -1]
 endfunction
 
 function! s:job_callback_nvim_stdout(_job_id, data, _event) dict abort
@@ -108,12 +112,15 @@ function! s:crates() abort
   for line in getline(1, '$')
     if line =~# '^\[.*dependencies\]$'
       let in_dep_section = 1
+    elseif line[0] == '['
+      let in_dep_section = 0
     elseif line[0] == '#'
     elseif empty(line)
-      let in_dep_section = 0
     elseif in_dep_section
       let [crate, vers] = s:cargo_file_parse_line(line)
-      call s:make_request(crate, vers, lnum)
+      if !empty(crate)
+        call s:make_request(crate, vers, lnum)
+      endif
     endif
     let lnum += 1
   endfor
