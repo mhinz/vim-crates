@@ -12,8 +12,6 @@ let s:api_github = 'https://api.github.com/repos/rust-lang/crates.io-index'
 
 let s:ns = nvim_create_namespace('crates')
 
-let b:crates = {}
-
 highlight default Crates
       \ ctermfg=white ctermbg=198 cterm=NONE
       \ guifg=#ffffff guibg=#fc3790 gui=NONE
@@ -49,7 +47,14 @@ function! s:job_callback_nvim_exit(_job_id, exitval, _event) dict abort
     echomsg "D'oh! Got ". a:exitval
     return
   endif
-  let b:crates[self.crate] = map(json_decode(self.stdoutbuf[0]).versions, 'v:val.num')
+  let data = json_decode(self.stdoutbuf[0])
+  if !has_key(data, 'versions')
+    if self.verbose
+      echomsg self.crate .': '. string(data)
+    endif
+    return
+  endif
+  let b:crates[self.crate] = map(data.versions, 'v:val.num')
   call nvim_buf_set_virtual_text(bufnr(''), s:ns, self.lnum,
         \ [[' '. b:crates[self.crate][0] .' ', 'Crates']], {})
 endfunction
@@ -61,6 +66,7 @@ function! s:make_request(crate, vers, lnum) abort
         \ 'crate':     a:crate,
         \ 'vers':      a:vers,
         \ 'lnum':      a:lnum,
+        \ 'verbose':   &verbose,
         \ 'stdoutbuf': [''],
         \ 'on_stdout': function('s:job_callback_nvim_stdout'),
         \ 'on_exit':   function('s:job_callback_nvim_exit'),
@@ -68,6 +74,8 @@ function! s:make_request(crate, vers, lnum) abort
 endfunction
 
 function! s:crates() abort
+  let b:crates = {}
+
   let lnum = 0
   let in_dep_section = 0
 
