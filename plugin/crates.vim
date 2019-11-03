@@ -6,8 +6,6 @@ endif
 
 let s:api = 'https://crates.io/api/v1'
 
-let s:ns = nvim_create_namespace('crates')
-
 highlight default Crates
       \ ctermfg=white ctermbg=198 cterm=NONE
       \ guifg=#ffffff guibg=#fc3790 gui=NONE
@@ -46,15 +44,27 @@ function! s:job_callback_nvim_exit(_job_id, exitval, _event) dict abort
   let vers_current = self.vers
   let vers_latest  = filter(copy(b:crates[self.crate]), 'v:val !~ "\\a"')[0]
   if s:semver_compare(vers_current, vers_latest) < 0
-    call nvim_buf_set_virtual_text(bufnr(''), s:ns, self.lnum,
-          \ [[' '. vers_latest .' ', 'Crates']], {})
+    call nvim_buf_set_virtual_text(bufnr(''), nvim_create_namespace('crates'),
+          \ self.lnum, [[' '. vers_latest .' ', 'Crates']], {})
   endif
 endfunction
 
-function! s:make_request(crate, vers, lnum) abort
+function! s:build_cmd(crate) abort
   let url = printf('%s/crates/%s/versions', s:api, a:crate)
-  let cmd = ['curl', '-sL', url]
-  let job_id = jobstart(cmd, {
+  return ['curl', '-sL', url]
+endfunction
+
+function! s:make_request_sync(crate)
+  let result = system(join(s:build_cmd(a:crate)))
+  if v:shell_error
+    return v:shell_error
+  endif
+  let b:crates[a:crate] = map(json_decode(result).versions, 'v:val.num')
+  return 0
+endfunction
+
+function! s:make_request_async(crate, vers, lnum) abort
+  call jobstart(s:build_cmd(a:crate), {
         \ 'crate':     a:crate,
         \ 'vers':      a:vers,
         \ 'lnum':      a:lnum,
@@ -96,16 +106,26 @@ function! g:CratesComplete(findstart, base)
     return start
   else
     let crate = matchstr(getline('.'), '^[a-z\-_]\+')
-    if has_key(b:crates, crate)
-      return filter(copy(b:crates[crate]), 'v:val =~ "^'.a:base.'"')
+    if !exists('b:crates')
+      let b:crates = {}
     endif
-    return []
+    if !has_key(b:crates, crate)
+      if s:make_request_sync(crate) != 0
+        return []
+      endif
+    endif
+    return filter(copy(b:crates[crate]), 'v:val =~ "^'.a:base.'"')
   endif
 endfunction
 
 function! s:crates() abort
-  let b:crates = {}
-
+  if !has('nvim')
+    echomsg 'Sorry, this is a Nvim-only feature.'
+    return
+  endif
+  if !exists('b:crates')
+    let b:crates = {}
+  endif
   let lnum = 0
   let in_dep_section = 0
 
@@ -119,15 +139,17 @@ function! s:crates() abort
     elseif in_dep_section
       let [crate, vers] = s:cargo_file_parse_line(line)
       if !empty(crate)
-        call s:make_request(crate, vers, lnum)
+        call s:make_request_async(crate, vers, lnum)
       endif
     endif
     let lnum += 1
   endfor
-
-  set omnifunc=CratesComplete
 endfunction
 
-command! Crates call s:crates()
+augroup crates
+  autocmd BufRead Cargo.toml
+        \ set omnifunc=CratesComplete |
+        \ command! Crates call s:crates()
+augroup END
 
 let g:loaded_crates = 1
