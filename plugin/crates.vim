@@ -3,12 +3,8 @@ if exists('g:loaded_crates')
 endif
 
 " curl -s https://crates.io/api/v1/crates/cargo_metadata/versions | jq '.versions[].num'
-"
-" More prone to rate-limiting:
-" curl -sH 'Accept: application/vnd.github.VERSION.raw' https://api.github.com/repos/rust-lang/crates.io-index/contents/ca/rg/cargo_metadata | jq '.vers'
 
-let s:api_crates = 'https://crates.io/api/v1'
-let s:api_github = 'https://api.github.com/repos/rust-lang/crates.io-index'
+let s:api = 'https://crates.io/api/v1'
 
 let s:ns = nvim_create_namespace('crates')
 
@@ -23,18 +19,6 @@ function! s:cargo_file_parse_line(line) abort
   else
     return matchlist(a:line, '^\([a-z\-_]\+\) = {.*version = "\([0-9.]\+\)"')[1:2]
   endif
-endfunction
-
-function! s:github_get_index_path(crate) abort
-  let len = len(a:crate)
-  if len == 1
-    return printf('1/%s', a:crate)
-  elseif len == 2
-    return printf('2/%s', a:crate)
-  elseif len == 3
-    return printf('3/%s/%s', a:crate[0], a:crate)
-  endif
-  return printf('%s/%s/%s', a:crate[0:1], a:crate[2:3], a:crate)
 endfunction
 
 function! s:job_callback_nvim_stdout(_job_id, data, _event) dict abort
@@ -64,7 +48,7 @@ function! s:job_callback_nvim_exit(_job_id, exitval, _event) dict abort
 endfunction
 
 function! s:make_request(crate, vers, lnum) abort
-  let url = printf('%s/crates/%s/versions', s:api_crates, a:crate)
+  let url = printf('%s/crates/%s/versions', s:api, a:crate)
   let cmd = ['curl', '-sL', url]
   let job_id = jobstart(cmd, {
         \ 'crate':     a:crate,
