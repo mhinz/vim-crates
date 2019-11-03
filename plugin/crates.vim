@@ -55,8 +55,12 @@ function! s:job_callback_nvim_exit(_job_id, exitval, _event) dict abort
     return
   endif
   let b:crates[self.crate] = map(data.versions, 'v:val.num')
-  call nvim_buf_set_virtual_text(bufnr(''), s:ns, self.lnum,
-        \ [[' '. b:crates[self.crate][0] .' ', 'Crates']], {})
+  let vers_current = self.vers
+  let vers_latest  = filter(copy(b:crates[self.crate]), 'v:val !~ "\\a"')[0]
+  if s:semver_compare(vers_current, vers_latest) < 0
+    call nvim_buf_set_virtual_text(bufnr(''), s:ns, self.lnum,
+          \ [[' '. vers_latest .' ', 'Crates']], {})
+  endif
 endfunction
 
 function! s:make_request(crate, vers, lnum) abort
@@ -71,6 +75,27 @@ function! s:make_request(crate, vers, lnum) abort
         \ 'on_stdout': function('s:job_callback_nvim_stdout'),
         \ 'on_exit':   function('s:job_callback_nvim_exit'),
         \ })
+endfunction
+
+function! s:semver_normalize(vers) abort
+  let vers = split(a:vers, '\.')
+  if len(vers) == 1
+    return vers + [0, 0]
+  elseif len(vers) == 2
+    return vers + [0]
+  else
+    return vers[:2]
+  endif
+endfunction
+
+function! s:semver_compare(a, b) abort
+  let a = s:semver_normalize(a:a)
+  let b = s:semver_normalize(a:b)
+  for i in range(3)
+    if a[i] > b[i] | return  1 | endif
+    if a[i] < b[i] | return -1 | endif
+  endfor
+  return 0
 endfunction
 
 function! g:CratesComplete(findstart, base)
