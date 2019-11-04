@@ -24,3 +24,5 @@ available versions of a crate and caches them.
 Inspired by [serayuzgur/crates](https://github.com/serayuzgur/crates).
 
 Happy 🦀 everyone!
+
+![](https://raw.githubusercontent.com/mhinz/vim-crates/master/demo.gif)
