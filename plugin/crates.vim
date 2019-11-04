@@ -146,10 +146,36 @@ function! s:crates() abort
   endfor
 endfunction
 
+function! s:crates_up() abort
+  if !exists('b:crates')
+    let b:crates = {}
+  endif
+  let crate = matchstr(getline('.'), '^[a-z\-_]\+')
+  if !has_key(b:crates, crate) && s:make_request_sync(crate) != 0
+    return
+  endif
+  let vers_latest  = filter(copy(b:crates[crate]), 'v:val !~ "\\a"')[0]
+  let lnum = line('.')
+  let line = getline(lnum)
+  if line =~ '^[a-z\-_]* = "'
+    let line = substitute(line, '"\zs[0-9\.]\+\ze"', vers_latest, '')
+  elseif line =~# 'version'
+    let line = substitute(line, 'version\s*=\s*"\zs[0-9\.]\+\ze"', vers_latest, '')
+  else
+    echomsg 'Failed parsing this line. Create a GitHub issue for it.'
+    return
+  endif
+  call setline(lnum, line)
+endfunction
+
+function! s:setup() abort
+  set omnifunc=CratesComplete
+  command! -bar Crates   call s:crates()
+  command! -bar CratesUp call s:crates_up()
+endfunction
+
 augroup crates
-  autocmd BufRead Cargo.toml
-        \ set omnifunc=CratesComplete |
-        \ command! Crates call s:crates()
+  autocmd BufRead Cargo.toml call s:setup()
 augroup END
 
 let g:loaded_crates = 1
