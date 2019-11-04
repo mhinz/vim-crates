@@ -146,6 +146,18 @@ function! s:crates() abort
   endfor
 endfunction
 
+function! s:crates_toggle() abort
+  if !exists('b:crates_toggle')
+    let b:crates_toggle = 0
+  endif
+  if b:crates_toggle == 0
+    call s:crates()
+  else
+    call nvim_buf_clear_namespace(bufnr(''), nvim_create_namespace('crates'), 0, -1)
+  endif
+  let b:crates_toggle = !b:crates_toggle
+endfunction
+
 function! s:crates_up() abort
   if !exists('b:crates')
     let b:crates = {}
@@ -166,14 +178,14 @@ function! s:crates_up() abort
     return
   endif
   call setline(lnum, line)
-  call nvim_buf_clear_highlight(bufnr(''), nvim_create_namespace('crates'),
+  call nvim_buf_clear_namespace(bufnr(''), nvim_create_namespace('crates'),
         \ line('.')-1, line('.'))
 endfunction
 
 function! s:setup() abort
   set omnifunc=CratesComplete
-  command! -bar Crates   call s:crates()
-  command! -bar CratesUp call s:crates_up()
+  command! -bar CratesToggle call s:crates_toggle()
+  command! -bar CratesUp     call s:crates_up()
 endfunction
 
 augroup crates
