@@ -4,6 +4,8 @@ When maintaining Rust projects, this plugin helps with updating the dependencies
 in `Cargo.toml` files. It uses the [crates.io](https://crates.io) API to get all
 available versions of a crate and caches them.
 
+_[curl](https://curl.haxx.se) needs to be installed._
+
 - If the cursor is on a dependency's version and in insert mode, use
   `<c-x><c-u>` (hold <kbd>Ctrl</kbd> and hit <kbd>x</kbd> then <kbd>u</kbd>) to
   open a completion menu with all available versions (see `:h i_CTRL-X_CTRL-U`).
