@@ -166,6 +166,8 @@ function! s:crates_up() abort
     return
   endif
   call setline(lnum, line)
+  call nvim_buf_clear_highlight(bufnr(''), nvim_create_namespace('crates'),
+        \ line('.')-1, line('.'))
 endfunction
 
 function! s:setup() abort
