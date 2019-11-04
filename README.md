@@ -21,4 +21,6 @@ available versions of a crate and caches them.
     highlight link Crates WarningMsg
     ```
 
+Inspired by [serayuzgur/crates](https://github.com/serayuzgur/crates).
+
 Happy 🦀 everyone!
