@@ -42,7 +42,7 @@ function! s:job_callback_nvim_exit(_job_id, exitval, _event) dict abort
   endif
   let b:crates[self.crate] = map(data.versions, 'v:val.num')
   let vers_current = self.vers
-  let vers_latest  = filter(copy(b:crates[self.crate]), 'v:val !~ "\\a"')[0]
+  let vers_latest  = s:cache(self.crate)
   if s:semver_compare(vers_current, vers_latest) < 0
     call nvim_buf_set_virtual_text(bufnr(''), nvim_create_namespace('crates'),
           \ self.lnum, [[' '. vers_latest .' ', 'Crates']], {})
@@ -96,6 +96,10 @@ function! s:semver_compare(a, b) abort
   return 0
 endfunction
 
+function! s:cache(crate) abort
+  return filter(copy(b:crates[a:crate]), 'v:val !~ "\\a"')[0]
+endfunction
+
 function! g:CratesComplete(findstart, base)
   if a:findstart
     let line = getline('.')
@@ -139,7 +143,12 @@ function! s:crates() abort
     elseif in_dep_section
       let [crate, vers] = s:cargo_file_parse_line(line)
       if !empty(crate)
-        call s:make_request_async(crate, vers, lnum)
+        if has_key(b:crates, crate)
+          call nvim_buf_set_virtual_text(bufnr(''), nvim_create_namespace('crates'),
+                \ lnum, [[' '. s:cache(crate) .' ', 'Crates']], {})
+        else
+          call s:make_request_async(crate, vers, lnum)
+        endif
       endif
     endif
     let lnum += 1
@@ -166,7 +175,7 @@ function! s:crates_up() abort
   if !has_key(b:crates, crate) && s:make_request_sync(crate) != 0
     return
   endif
-  let vers_latest  = filter(copy(b:crates[crate]), 'v:val !~ "\\a"')[0]
+  let vers_latest = s:cache(crate)
   let lnum = line('.')
   let line = getline(lnum)
   if line =~ '^[a-z\-_]* = "'
