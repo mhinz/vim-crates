@@ -11,10 +11,25 @@ highlight default Crates
       \ guifg=#ffffff guibg=#fc3790 gui=NONE
 
 " @return [crate, version]
-function! s:cargo_file_parse_line(line) abort
-  if a:line =~ '^[a-z\-_]* = "'
+function! s:cargo_file_parse_line(line, lnum) abort
+  if a:line =~# '^version'
+    " [dependencies.my-crate]
+    " version = "1.2.3"
+    let vers = matchstr(a:line, '^version = "\zs[0-9.]\+\ze')
+    if empty(vers)
+      break
+    endif
+    for lnum in reverse(range(1, a:lnum))
+      let crate = matchstr(getline(lnum), '^\[.*dependencies\.\zs.*\ze]$')
+      if !empty(crate)
+        return [crate, vers]
+      endif
+    endfor
+  elseif a:line =~ '^[a-z\-_]* = "'
+    " my-crate = "1.2.3"
     return matchlist(a:line, '^\([a-z\-_]\+\) = "\([0-9.]\+\)"')[1:2]
   elseif a:line =~# 'version'
+    " my-crate = { version = "1.2.3" }
     return matchlist(a:line, '^\([a-z\-_]\+\) = {.*version = "\([0-9.]\+\)"')[1:2]
   endif
   if &verbose
@@ -139,14 +154,14 @@ function! s:crates() abort
   let in_dep_section = 0
 
   for line in getline(1, '$')
-    if line =~# '^\[.*dependencies\]$'
+    if line =~# '^\[.*dependencies.*\]$'
       let in_dep_section = 1
     elseif line[0] == '['
       let in_dep_section = 0
     elseif line[0] == '#'
     elseif empty(line)
     elseif in_dep_section
-      let [crate, vers] = s:cargo_file_parse_line(line)
+      let [crate, vers] = s:cargo_file_parse_line(line, lnum)
       if !empty(crate)
         if has_key(b:crates, crate)
           call nvim_buf_set_virtual_text(bufnr(''), nvim_create_namespace('crates'),
