@@ -149,6 +149,7 @@ function! s:crates() abort
     echomsg 'Sorry, this is a Nvim-only feature.'
     return
   endif
+  call s:virttext_clear('crates')
   if !exists('b:crates')
     let b:crates = {}
   endif
@@ -177,14 +178,24 @@ function! s:crates() abort
   endfor
 endfunction
 
+function! s:virttext_clear(ns) abort
+  call nvim_buf_clear_namespace(bufnr(''), nvim_create_namespace(a:ns), 0, -1)
+endfunction
+
 function! s:crates_toggle() abort
   if !exists('b:crates_toggle')
     let b:crates_toggle = 0
   endif
   if b:crates_toggle == 0
     call s:crates()
+    " By now all the latest versions are cached, so updating the virttext on
+    " each save is a very fast operation.
+    augroup crates_toggle
+      autocmd BufWritePost <buffer> call s:crates()
+    augroup END
   else
-    call nvim_buf_clear_namespace(bufnr(''), nvim_create_namespace('crates'), 0, -1)
+    call s:virttext_clear('crates')
+    autocmd! crates_toggle
   endif
   let b:crates_toggle = !b:crates_toggle
 endfunction
