@@ -60,11 +60,13 @@ function! s:callback_show_latest_version(exitval) dict abort
     return
   endif
   let b:crates[self.crate] = map(data.versions, 'v:val.num')
-  let vers_current = self.vers
-  let vers_latest  = s:cache(self.crate)
-  if s:semver_compare(vers_current, vers_latest) < 0
+  call s:virttext_add_version(self.lnum, self.vers, s:cache(self.crate))
+endfunction
+
+function! s:virttext_add_version(lnum, vers_current, vers_latest)
+  if s:semver_compare(a:vers_current, a:vers_latest) < 0
     call nvim_buf_set_virtual_text(bufnr(''), nvim_create_namespace('crates'),
-          \ self.lnum, [[' '. vers_latest .' ', 'Crates']], {})
+          \ a:lnum, [[' '. a:vers_latest .' ', 'Crates']], {})
   endif
 endfunction
 
@@ -164,8 +166,7 @@ function! s:crates() abort
       let [crate, vers] = s:cargo_file_parse_line(line, lnum)
       if !empty(crate)
         if has_key(b:crates, crate)
-          call nvim_buf_set_virtual_text(bufnr(''), nvim_create_namespace('crates'),
-                \ lnum, [[' '. s:cache(crate) .' ', 'Crates']], {})
+          call s:virttext_add_version(lnum, vers, s:cache(crate))
         else
           call s:make_request_async(s:crates_io_cmd(crate), crate, vers, lnum,
                 \ function('s:callback_show_latest_version'))
