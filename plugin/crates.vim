@@ -192,20 +192,22 @@ function! s:crates_up() abort
   if !exists('b:crates')
     let b:crates = {}
   endif
-  let crate = matchstr(getline('.'), '^[a-z\-_]\+')
+  let lnum = line('.')
+  let line = getline('.')
+  let [crate, vers] = s:cargo_file_parse_line(line, lnum)
+  if empty(crate)
+    echomsg 'No version on this line.'
+    return
+  endif
   if !has_key(b:crates, crate) && s:make_request_sync(crate) != 0
+    echomsg 'curl failed!'
     return
   endif
   let vers_latest = s:cache(crate)
-  let lnum = line('.')
-  let line = getline(lnum)
-  if line =~ '^[a-z\-_]* = "'
-    let line = substitute(line, '"\zs[0-9\.]\+\ze"', vers_latest, '')
-  elseif line =~# 'version'
+  if line =~# 'version\s*='
     let line = substitute(line, 'version\s*=\s*"\zs[0-9\.]\+\ze"', vers_latest, '')
   else
-    echomsg 'Failed parsing this line. Create a GitHub issue for it.'
-    return
+    let line = substitute(line, '"\zs[0-9\.]\+\ze"', vers_latest, '')
   endif
   call setline(lnum, line)
   call nvim_buf_clear_namespace(bufnr(''), nvim_create_namespace('crates'),
