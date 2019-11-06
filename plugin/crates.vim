@@ -227,7 +227,7 @@ function! s:crates_up() abort
 endfunction
 
 function! s:setup() abort
-  set completefunc=CratesComplete
+  setlocal completefunc=CratesComplete
   command! -bar CratesToggle call s:crates_toggle()
   command! -bar CratesUp     call s:crates_up()
 endfunction
