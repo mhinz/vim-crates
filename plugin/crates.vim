@@ -29,6 +29,10 @@ function! s:job_callback_nvim_stdout(_job_id, data, _event) dict abort
 endfunction
 
 function! s:job_callback_nvim_exit(_job_id, exitval, _event) dict abort
+  call self.callback(a:exitval)
+endfunction
+
+function! s:callback_show_latest_version(exitval) dict abort
   if a:exitval
     echomsg "D'oh! Got ". a:exitval
     return
@@ -49,13 +53,13 @@ function! s:job_callback_nvim_exit(_job_id, exitval, _event) dict abort
   endif
 endfunction
 
-function! s:build_cmd(crate) abort
+function! s:crates_io_cmd(crate) abort
   let url = printf('%s/crates/%s/versions', s:api, a:crate)
   return ['curl', '-sL', url]
 endfunction
 
 function! s:make_request_sync(crate)
-  let result = system(join(s:build_cmd(a:crate)))
+  let result = system(join(s:crates_io_cmd(a:crate)))
   if v:shell_error
     return v:shell_error
   endif
@@ -63,11 +67,12 @@ function! s:make_request_sync(crate)
   return 0
 endfunction
 
-function! s:make_request_async(crate, vers, lnum) abort
-  call jobstart(s:build_cmd(a:crate), {
+function! s:make_request_async(cmd, crate, vers, lnum, callback) abort
+  call jobstart(a:cmd, {
         \ 'crate':     a:crate,
         \ 'vers':      a:vers,
         \ 'lnum':      a:lnum,
+        \ 'callback':  a:callback,
         \ 'verbose':   &verbose,
         \ 'stdoutbuf': [''],
         \ 'on_stdout': function('s:job_callback_nvim_stdout'),
@@ -147,7 +152,8 @@ function! s:crates() abort
           call nvim_buf_set_virtual_text(bufnr(''), nvim_create_namespace('crates'),
                 \ lnum, [[' '. s:cache(crate) .' ', 'Crates']], {})
         else
-          call s:make_request_async(crate, vers, lnum)
+          call s:make_request_async(s:crates_io_cmd(crate), crate, vers, lnum,
+                \ function('s:callback_show_latest_version'))
         endif
       endif
     endif
