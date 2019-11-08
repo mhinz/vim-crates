@@ -112,8 +112,10 @@ function! s:semver_compare(a, b) abort
   let a = s:semver_normalize(a:a)
   let b = s:semver_normalize(a:b)
   for i in range(3)
-    if a[i] > b[i] | return  1 | endif
-    if a[i] < b[i] | return -1 | endif
+    let aa = str2nr(a[i])
+    let bb = str2nr(b[i])
+    if str2nr(aa) > str2nr(bb) | return  1 | endif
+    if str2nr(aa) < str2nr(bb) | return -1 | endif
   endfor
   return 0
 endfunction
