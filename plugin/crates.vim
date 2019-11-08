@@ -166,7 +166,15 @@ function! s:crates() abort
     elseif line[0] == '#'
     elseif empty(line)
     elseif in_dep_section
-      let [crate, vers] = s:cargo_file_parse_line(line, lnum)
+      try
+        let [crate, vers] = s:cargo_file_parse_line(line, lnum)
+      catch
+        if &verbose
+          echomsg 'Failed parsing line:' line
+        endif
+        let lnum += 1
+        continue
+      endtry
       if !empty(crate)
         if has_key(b:crates, crate)
           call s:virttext_add_version(lnum, vers, s:cache(crate))
