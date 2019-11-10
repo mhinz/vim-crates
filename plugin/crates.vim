@@ -25,12 +25,12 @@ function! s:cargo_file_parse_line(line, lnum) abort
         return [crate, vers]
       endif
     endfor
-  elseif a:line =~ '^[a-z\-_]* = "'
+  elseif a:line =~ '^[[:alnum:]\-_]* = "'
     " my-crate = "1.2.3"
-    return matchlist(a:line, '^\([a-z\-_]\+\) = "\([0-9.]\+\)"')[1:2]
+    return matchlist(a:line, '^\([[:alnum:]\-_]\+\) = "\([0-9.]\+\)"')[1:2]
   elseif a:line =~# 'version'
     " my-crate = { version = "1.2.3" }
-    return matchlist(a:line, '^\([a-z\-_]\+\) = {.*version = "\([0-9.]\+\)"')[1:2]
+    return matchlist(a:line, '^\([[:alnum:]\-_]\+\) = {.*version = "\([0-9.]\+\)"')[1:2]
   endif
   if &verbose
     echomsg 'Skipped:' a:line
