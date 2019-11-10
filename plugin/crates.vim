@@ -97,25 +97,14 @@ function! s:make_request_async(cmd, crate, vers, lnum, callback) abort
         \ })
 endfunction
 
-function! s:semver_normalize(vers) abort
-  let vers = split(a:vers, '\.')
-  if len(vers) == 1
-    return vers + [0, 0]
-  elseif len(vers) == 2
-    return vers + [0]
-  else
-    return vers[:2]
-  endif
-endfunction
-
 function! s:semver_compare(a, b) abort
-  let a = s:semver_normalize(a:a)
-  let b = s:semver_normalize(a:b)
-  for i in range(3)
+  let a = split(a:a, '\.')
+  let b = split(a:b, '\.')
+  for i in range(min([len(a), len(b)]))
     let aa = str2nr(a[i])
     let bb = str2nr(b[i])
-    if str2nr(aa) > str2nr(bb) | return  1 | endif
-    if str2nr(aa) < str2nr(bb) | return -1 | endif
+    if aa > bb | return  1 | endif
+    if aa < bb | return -1 | endif
   endfor
   return 0
 endfunction
