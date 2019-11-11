@@ -22,6 +22,7 @@ _[curl](https://curl.haxx.se) needs to be installed._
     " or link it to another highlight group
     highlight link Crates WarningMsg
     ```
+  Use `:verb CratesToggle` to see debug messages.
 
 Inspired by [serayuzgur/crates](https://github.com/serayuzgur/crates).
 
