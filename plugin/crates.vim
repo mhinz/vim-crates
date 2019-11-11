@@ -15,7 +15,7 @@ function! s:cargo_file_parse_line(line, lnum) abort
   if a:line =~# '^version'
     " [dependencies.my-crate]
     " version = "1.2.3"
-    let vers = matchstr(a:line, '^version = "\zs[0-9.]\+\ze')
+    let vers = matchstr(a:line, '^version = "\zs[0-9.\*]\+\ze')
     if empty(vers)
       break
     endif
@@ -27,10 +27,10 @@ function! s:cargo_file_parse_line(line, lnum) abort
     endfor
   elseif a:line =~ '^[[:alnum:]\-_]* = "'
     " my-crate = "1.2.3"
-    return matchlist(a:line, '^\([[:alnum:]\-_]\+\) = "\([0-9.]\+\)"')[1:2]
+    return matchlist(a:line, '^\([[:alnum:]\-_]\+\) = "\([0-9.\*]\+\)"')[1:2]
   elseif a:line =~# 'version'
     " my-crate = { version = "1.2.3" }
-    return matchlist(a:line, '^\([[:alnum:]\-_]\+\) = {.*version = "\([0-9.]\+\)"')[1:2]
+    return matchlist(a:line, '^\([[:alnum:]\-_]\+\) = {.*version = "\([0-9.\*]\+\)"')[1:2]
   endif
   if &verbose
     echomsg 'Skipped:' a:line
@@ -99,9 +99,10 @@ endfunction
 
 " Show latest version if it's outside of the given requirement.
 function! s:show(a, b) abort
+  let has_wildcard = match(a:a, '\*') != -1
   let a = split(a:a, '\.')
   let b = split(a:b, '\.')
-  return s:show_caret(a, b)
+  return has_wildcard ? s:show_wildcard(a, b) : s:show_caret(a, b)
 endfunction
 
 " Handle caret requirements.
@@ -119,6 +120,20 @@ function! s:show_caret(a, b) abort
     let b = str2nr(a:b[i])
     if a == 0 && b == 0 | continue | endif
     return a < b ? 1 : 0
+  endfor
+  return 0
+endfunction
+
+" Handle wildcard requirements.
+" *     := >=0.0.0
+" 1.*   := >=1.0.0 <2.0.0
+" 1.2.* := >=1.2.0 <1.3.0
+function! s:show_wildcard(a, b) abort
+  for i in range(min([len(a:a), 3]))
+    if a:a[i] == '*' | break | endif
+    let a = str2nr(a:a[i])
+    let b = str2nr(a:b[i])
+    if a < b | return 1 | endif
   endfor
   return 0
 endfunction
@@ -230,9 +245,9 @@ function! s:crates_up() abort
   endif
   let vers_latest = s:cache(crate)
   if line =~# 'version\s*='
-    let line = substitute(line, 'version\s*=\s*"\zs[0-9\.]\+\ze"', vers_latest, '')
+    let line = substitute(line, 'version\s*=\s*"\zs[0-9\.\*]\+\ze"', vers_latest, '')
   else
-    let line = substitute(line, '"\zs[0-9\.]\+\ze"', vers_latest, '')
+    let line = substitute(line, '"\zs[0-9\.\*]\+\ze"', vers_latest, '')
   endif
   call setline(lnum, line)
   call nvim_buf_clear_namespace(bufnr(''), nvim_create_namespace('crates'),
