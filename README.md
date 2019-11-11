@@ -28,4 +28,14 @@ Inspired by [serayuzgur/crates](https://github.com/serayuzgur/crates).
 
 Happy 🦀 everyone!
 
+## Configuration
+
+Automatically run `:CratesToggle` when opening a `Cargo.toml` file:
+
+```vim
+autocmd BufRead Cargo.toml call crates#toggle()
+```
+
+## Demo
+
 ![](https://raw.githubusercontent.com/mhinz/vim-crates/master/demo.gif)

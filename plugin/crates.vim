@@ -210,7 +210,7 @@ function! s:virttext_clear(ns) abort
   call nvim_buf_clear_namespace(bufnr(''), nvim_create_namespace(a:ns), 0, -1)
 endfunction
 
-function! s:crates_toggle() abort
+function! crates#toggle() abort
   if !exists('b:crates_toggle')
     let b:crates_toggle = 0
   endif
@@ -228,7 +228,7 @@ function! s:crates_toggle() abort
   let b:crates_toggle = !b:crates_toggle
 endfunction
 
-function! s:crates_up() abort
+function! crates#up() abort
   if !exists('b:crates')
     let b:crates = {}
   endif
@@ -256,8 +256,8 @@ endfunction
 
 function! s:setup() abort
   setlocal completefunc=CratesComplete
-  command! -bar CratesToggle call s:crates_toggle()
-  command! -bar CratesUp     call s:crates_up()
+  command! -bar CratesToggle call crates#toggle()
+  command! -bar CratesUp     call crates#up()
 endfunction
 
 augroup crates
