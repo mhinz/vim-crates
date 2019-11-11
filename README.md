@@ -6,16 +6,24 @@ available versions of a crate and caches them.
 
 _[curl](https://curl.haxx.se) needs to be installed._
 
-- If the cursor is on a dependency's version and in insert mode, use
-  `<c-x><c-u>` (hold <kbd>Ctrl</kbd> and hit <kbd>x</kbd> then <kbd>u</kbd>) to
-  open a completion menu with all available versions (see `:h i_CTRL-X_CTRL-U`).
-- Update the current dependency to the latest non-prerelease version via
-  `:CratesUp`.
-- For each dependency that is out-of-date, indicate the latest version as
-  virtual text after the end of the line via `:CratesToggle`. Use it again to
-  remove all indicators. This is a
-  [Nvim](https://github.com/neovim/neovim/)-only feature. Customize the colors
-  of the indicators like this:
+- **Insert completion**
+
+  If the cursor is on a [version requirement](https://doc.rust-lang.org/cargo/reference/specifying-dependencies.html#specifying-dependencies)
+  and in insert mode, use `<c-x><c-u>` (hold <kbd>Ctrl</kbd> and hit
+  <kbd>x</kbd> then <kbd>u</kbd>) to open a completion menu with all available
+  versions (see `:h i_CTRL-X_CTRL-U`).
+
+- **:CratesUp**
+
+  Update the current dependency to the latest non-prerelease version.
+
+- **:CratesToggle**
+
+  For each dependency that is out-of-date, indicate the latest version as virtual
+  text after the end of the line. Use it again to remove all indicators. This is
+  a [Nvim](https://github.com/neovim/neovim/)-only feature.
+
+  Customize the colors of the indicators like this:
 
     ```vim
     highlight Crates ctermfg=green ctermbg=NONE cterm=NONE
@@ -33,7 +41,9 @@ Happy 🦀 everyone!
 Automatically run `:CratesToggle` when opening a `Cargo.toml` file:
 
 ```vim
-autocmd BufRead Cargo.toml call crates#toggle()
+if has('nvim')
+  autocmd BufRead Cargo.toml call crates#toggle()
+endif
 ```
 
 ## Demo
