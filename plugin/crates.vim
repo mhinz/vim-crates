@@ -64,7 +64,7 @@ function! s:callback_show_latest_version(exitval) dict abort
 endfunction
 
 function! s:virttext_add_version(lnum, vers_current, vers_latest)
-  if s:semver_compare(a:vers_current, a:vers_latest) < 0
+  if s:show(a:vers_current, a:vers_latest)
     call nvim_buf_set_virtual_text(bufnr(''), nvim_create_namespace('crates'),
           \ a:lnum, [[' '. a:vers_latest .' ', 'Crates']], {})
   endif
@@ -97,14 +97,28 @@ function! s:make_request_async(cmd, crate, vers, lnum, callback) abort
         \ })
 endfunction
 
-function! s:semver_compare(a, b) abort
+" Show latest version if it's outside of the given requirement.
+function! s:show(a, b) abort
   let a = split(a:a, '\.')
   let b = split(a:b, '\.')
-  for i in range(min([len(a), len(b)]))
-    let aa = str2nr(a[i])
-    let bb = str2nr(b[i])
-    if aa > bb | return  1 | endif
-    if aa < bb | return -1 | endif
+  return s:show_caret(a, b)
+endfunction
+
+" Handle caret requirements.
+" ^1.2.3  :=  >=1.2.3 <2.0.0
+" ^1.2    :=  >=1.2.0 <2.0.0
+" ^1      :=  >=1.0.0 <2.0.0
+" ^0.2.3  :=  >=0.2.3 <0.3.0
+" ^0.2    :=  >=0.2.0 <0.3.0
+" ^0.0.3  :=  >=0.0.3 <0.0.4
+" ^0.0    :=  >=0.0.0 <0.1.0
+" ^0      :=  >=0.0.0 <1.0.0
+function! s:show_caret(a, b) abort
+  for i in range(min([len(a:a), 3]))
+    let a = str2nr(a:a[i])
+    let b = str2nr(a:b[i])
+    if a == 0 && b == 0 | continue | endif
+    return a < b ? 1 : 0
   endfor
   return 0
 endfunction
