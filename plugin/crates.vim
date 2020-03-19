@@ -151,7 +151,7 @@ function! g:CratesComplete(findstart, base)
     endwhile
     return start
   else
-    let crate = matchstr(getline('.'), '^[a-z\-_]\+')
+    let crate = matchstr(getline('.'), '^[a-z\-_0-9]\+')
     if !exists('b:crates')
       let b:crates = {}
     endif
