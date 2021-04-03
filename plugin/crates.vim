@@ -72,7 +72,7 @@ endfunction
 
 function! s:crates_io_cmd(crate) abort
   let url = printf('%s/crates/%s/versions', s:api, a:crate)
-  return ['curl', '-sL', url]
+  return ['curl', '-sLA', 'vim-crates (https://github.com/mhinz/vim-crates)', url]
 endfunction
 
 function! s:make_request_sync(crate)
