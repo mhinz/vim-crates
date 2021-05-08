@@ -104,6 +104,9 @@ endfunction
 " Show latest version if it's outside of the given requirement.
 function! s:show(a, b) abort
   let has_wildcard = match(a:a, '\*') != -1
+  if !has_wildcard && get(g:, 'crates_always_show_newer_caret', 0)
+    return a:a !=# a:b
+  endif
   let a = split(a:a, '\.')
   let b = split(a:b, '\.')
   return has_wildcard ? s:show_wildcard(a, b) : s:show_caret(a, b)
