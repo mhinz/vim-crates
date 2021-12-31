@@ -254,8 +254,10 @@ function! crates#up() abort
     let line = substitute(line, '"\zs[0-9\.\*]\+\ze"', vers_latest, '')
   endif
   call setline(lnum, line)
-  call nvim_buf_clear_namespace(bufnr(''), nvim_create_namespace('crates'),
-        \ line('.')-1, line('.'))
+  if has('nvim')
+    call nvim_buf_clear_namespace(bufnr(''), nvim_create_namespace('crates'),
+          \ line('.')-1, line('.'))
+  endif
 endfunction
 
 function! s:setup() abort
