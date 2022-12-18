@@ -95,11 +95,10 @@ function! s:virttext_add_version(lnum, vers_current, vers_latest)
               \ })
       endif
 
-      call prop_add(a:lnum + 1, len(getline(a:lnum + 1)) + 1, {
-            \ 'length': 1,
+      call prop_add(a:lnum + 1, 0, {
             \ 'type': 'crates',
             \ 'text': text,
-            \ 'text_align': 'after',
+            \ 'text_padding_left': 1,
             \ })
     endif
   endif
