@@ -43,13 +43,29 @@ function! s:job_callback_nvim_stdout(_job_id, data, _event) dict abort
   call extend(self.stdoutbuf, a:data[1:])
 endfunction
 
+function! s:job_callback_vim_stdout(channel, message) dict abort
+  let self.stdoutbuf[0] .= a:message
+endfunction
+
 function! s:job_callback_nvim_exit(_job_id, exitval, _event) dict abort
   call self.callback(a:exitval)
+endfunction
+
+function! s:job_callback_vim_exit(_channel, exitval) dict abort
+  let self.exitval = a:exitval
+endfunction
+
+function! s:job_callback_vim_close(_channel) dict abort
+  call self.callback(self.exitval)
 endfunction
 
 function! s:callback_show_latest_version(exitval) dict abort
   if a:exitval
     echomsg "D'oh! Got ". a:exitval
+    return
+  endif
+  if self.stdoutbuf[0] == ''
+    echomsg "D'oh! Got no output for crate " . self.crate
     return
   endif
   let data = json_decode(self.stdoutbuf[0])
@@ -65,8 +81,26 @@ endfunction
 
 function! s:virttext_add_version(lnum, vers_current, vers_latest)
   if s:show(a:vers_current, a:vers_latest)
-    call nvim_buf_set_virtual_text(bufnr(''), nvim_create_namespace('crates'),
-          \ a:lnum, [[' '. a:vers_latest .' ', 'Crates']], {})
+    let text = ' '. a:vers_latest .' '
+
+    if has('nvim')
+      call nvim_buf_set_virtual_text(bufnr(''), nvim_create_namespace('crates'),
+            \ a:lnum, [[text, 'Crates']], {})
+    else
+      if empty(prop_type_get('crates', {'bufnr': bufnr('%')}))
+        call prop_type_add('crates', {
+              \ 'bufnr':     bufnr('%'),
+              \ 'highlight': 'Crates',
+              \ 'combine':   v:true
+              \ })
+      endif
+
+      call prop_add(a:lnum + 1, 0, {
+            \ 'type': 'crates',
+            \ 'text': text,
+            \ 'text_padding_left': 1,
+            \ })
+    endif
   endif
 endfunction
 
@@ -89,16 +123,38 @@ function! s:make_request_sync(crate)
 endfunction
 
 function! s:make_request_async(cmd, crate, vers, lnum, callback) abort
-  call jobstart(a:cmd, {
-        \ 'crate':     a:crate,
-        \ 'vers':      a:vers,
-        \ 'lnum':      a:lnum,
-        \ 'callback':  a:callback,
-        \ 'verbose':   &verbose,
-        \ 'stdoutbuf': [''],
-        \ 'on_stdout': function('s:job_callback_nvim_stdout'),
-        \ 'on_exit':   function('s:job_callback_nvim_exit'),
-        \ })
+  if has('nvim')
+    call jobstart(a:cmd, {
+          \ 'crate':     a:crate,
+          \ 'vers':      a:vers,
+          \ 'lnum':      a:lnum,
+          \ 'callback':  a:callback,
+          \ 'verbose':   &verbose,
+          \ 'stdoutbuf': [''],
+          \ 'on_stdout': function('s:job_callback_nvim_stdout'),
+          \ 'on_exit':   function('s:job_callback_nvim_exit'),
+          \ })
+  else
+    let runner = {
+          \ 'crate':     a:crate,
+          \ 'vers':      a:vers,
+          \ 'lnum':      a:lnum,
+          \ 'callback':  a:callback,
+          \ 'verbose':   &verbose,
+          \ 'stdoutbuf': [''],
+          \ 'exitval':   0,
+          \ 'out_cb':    function('s:job_callback_vim_stdout'),
+          \ 'exit_cb':   function('s:job_callback_vim_exit'),
+          \ 'close_cb':  function('s:job_callback_vim_close'),
+          \ }
+
+    call job_start(a:cmd, {
+          \ 'out_cb':  runner.out_cb,
+          \ 'exit_cb': runner.exit_cb,
+          \ 'close_cb': runner.close_cb,
+          \ 'noblock': 1,
+          \ })
+  endif
 endfunction
 
 " Show latest version if it's outside of the given requirement.
@@ -169,8 +225,8 @@ function! g:CratesComplete(findstart, base)
 endfunction
 
 function! s:crates() abort
-  if !has('nvim')
-    echomsg 'Sorry, this is a Nvim-only feature.'
+  if !has('nvim') && !has('patch-9.0.0069')
+    echomsg 'Sorry, you need Nvim or Vim > 9.0069'
     return
   endif
   call s:virttext_clear('crates')
@@ -211,7 +267,11 @@ function! s:crates() abort
 endfunction
 
 function! s:virttext_clear(ns) abort
-  call nvim_buf_clear_namespace(bufnr(''), nvim_create_namespace(a:ns), 0, -1)
+  if has('nvim')
+    call nvim_buf_clear_namespace(bufnr(''), nvim_create_namespace(a:ns), 0, -1)
+  else
+    call prop_clear(1, line('$'), { 'type': a:ns })
+  endif
 endfunction
 
 function! crates#toggle() abort
@@ -254,8 +314,12 @@ function! crates#up() abort
     let line = substitute(line, '"\zs[0-9\.\*]\+\ze"', vers_latest, '')
   endif
   call setline(lnum, line)
-  call nvim_buf_clear_namespace(bufnr(''), nvim_create_namespace('crates'),
-        \ line('.')-1, line('.'))
+  if has('nvim')
+    call nvim_buf_clear_namespace(bufnr(''), nvim_create_namespace('crates'),
+          \ line('.')-1, line('.'))
+  else
+    call prop_clear(line('.'), line('.'), { 'type': 'crates' })
+  endif
 endfunction
 
 function! s:setup() abort
